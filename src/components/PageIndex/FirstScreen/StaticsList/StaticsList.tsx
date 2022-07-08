@@ -1,10 +1,33 @@
 import { Statics } from '../Statics'
+import { gql, request } from 'graphql-request'
+import { useQuery } from 'react-query'
 import React, { FC, useCallback, useEffect, useState } from 'react'
 import * as styles from './index.module.scss'
+
+const endpoint = 'https://app-api.phala.network/'
+
+function useVCPU() {
+  return useQuery('posts', async () => {
+    const data = await request(
+      endpoint,
+      gql`
+        query AggregateMiners {
+          aggregateMiners(where: { state: { equals: "MiningIdle" } }) {
+            _sum {
+              pInstant
+            }
+          }
+        }
+      `
+    )
+    return data
+  })
+}
 
 export const StaticsList: FC = () => {
   const [cpu, setCpu] = useState(0)
   const [workers, setWorkers] = useState(0)
+  const { status: vCPUStatus, data: vCPUData } = useVCPU()
 
   const getData = useCallback(
     async function () {
@@ -13,7 +36,7 @@ export const StaticsList: FC = () => {
       )
       const data = await response.json()
 
-      setCpu(data.vCPU)
+      // setCpu(data.vCPU)
       setWorkers(data.workers)
     },
     [setCpu, setWorkers]
@@ -33,7 +56,13 @@ export const StaticsList: FC = () => {
       {workers > 0 && (
         <>
           <Statics name="Worker" value={workers}></Statics>
-          <Statics name="vCPU" value={cpu}></Statics>
+          {vCPUStatus === 'success' && (
+            <Statics
+              name="vCPU"
+              value={Math.floor(
+                vCPUData.aggregateMiners._sum.pInstant / 150
+              )}></Statics>
+          )}
           <Statics name="City" value={50} addPlus></Statics>
         </>
       )}
